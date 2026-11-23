@@ -1,45 +1,63 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
-import { GATE_PRESETS, SPEED_RATES, VEKTOR_TREM_COLORS } from './data/vektorGateData';
-import { VektorGateFaceplate, FaceplateState } from './components/VektorGateFaceplate';
+import { DELAY_PRESETS, VEKTOR_TREM_COLORS } from './data/vektorDelayData';
+import { VektorDelayFaceplate, FaceplateState } from './components/VektorDelayFaceplate';
 import { JuceSpecSection } from './components/JuceSpecSection';
 
-const presetA = GATE_PRESETS[0];
-const presetB = GATE_PRESETS[2];
+const presetA = DELAY_PRESETS[0];
+const presetB = DELAY_PRESETS[3];
 
 const makeStateFromPreset = (presetIndex: number, slot: 'A' | 'B'): FaceplateState => {
-  const p = GATE_PRESETS[presetIndex];
+  const p = DELAY_PRESETS[presetIndex];
   return {
     bypassed: false,
     bpm: 120,
     activeSlot: slot,
     presetIndex,
     presetName: p.name,
-    stepCount: p.stepCount,
-    levels: [...p.levels],
-    modes: [...p.modes],
-    enabledSteps: [...p.enabledSteps],
-    activeSignalMode: 0,
-    speedId: p.speedId,
-    viewMode: 'bars',
-    smooth: p.smooth,
-    envTime: p.envTime,
+    delayMode: p.delayMode,
+    subType: p.subType,
+    patternMode: p.patternMode,
+    dualRouting: p.dualRouting,
+    dualRatio: p.dualRatio,
+    lrOffsetMs: p.lrOffsetMs,
+    seqPlayMode: p.seqPlayMode,
+    seqStepCount: p.seqStepCount,
+    seqSteps: p.seqSteps.map((s) => ({ ...s })),
+    syncMode: p.syncMode,
+    timebaseId: p.timebaseId,
+    delayTimeMs: p.delayTimeMs,
     swing: p.swing,
-    floor: p.floor,
-    depth: p.depth,
-    releaseMs: p.releaseMs,
+    offsetMs: p.offsetMs,
+    feedback: p.feedback,
+    modRateHz: p.modRateHz,
+    modAmt: p.modAmt,
+    characterVal: p.characterVal,
+    pitchSemitones: p.pitchSemitones,
+    width: p.width,
+    filterPos: p.filterPos,
+    lowCutHz: p.lowCutHz,
+    highCutHz: p.highCutHz,
+    lowDampPct: p.lowDampPct,
+    lowDampFreqHz: p.lowDampFreqHz,
+    highDampPct: p.highDampPct,
+    highDampFreqHz: p.highDampFreqHz,
+    duckerTarget: p.duckerTarget,
+    extSidechain: p.extSidechain,
+    duckAmt: p.duckAmt,
+    duckRelease: p.duckRelease,
     outTrimDb: p.outTrimDb,
     mix: p.mix,
+    freeze: p.freeze,
     insertMode: 'hybrid',
   };
 };
 
 export default function App() {
   const [slotA, setSlotA] = useState<FaceplateState>(() => makeStateFromPreset(0, 'A'));
-  const [slotB, setSlotB] = useState<FaceplateState>(() => makeStateFromPreset(2, 'B'));
+  const [slotB, setSlotB] = useState<FaceplateState>(() => makeStateFromPreset(3, 'B'));
   const [activeSlot, setActiveSlot] = useState<'A' | 'B'>('A');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playheadStep, setPlayheadStep] = useState(0);
   const [dawScale, setDawScale] = useState<number>(1);
   const [containerScale, setContainerScale] = useState<number>(1);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -82,26 +100,6 @@ export default function App() {
     return () => window.removeEventListener('resize', updateScale);
   }, [dawScale]);
 
-  // Playhead synced to BPM + SPEED division
-  useEffect(() => {
-    if (!isPlaying || currentState.bypassed) return;
-    const rateObj = SPEED_RATES.find((r) => r.id === currentState.speedId);
-    const beats = rateObj?.beatsPerStep ?? 0.25;
-    const intervalMs = Math.max(40, Math.round((60000 / currentState.bpm) * beats));
-
-    const timer = window.setInterval(() => {
-      setPlayheadStep((prev) => (prev + 1) % currentState.stepCount);
-    }, intervalMs);
-
-    return () => window.clearInterval(timer);
-  }, [isPlaying, currentState.bypassed, currentState.bpm, currentState.speedId, currentState.stepCount]);
-
-  useEffect(() => {
-    if (playheadStep >= currentState.stepCount) {
-      setPlayheadStep(0);
-    }
-  }, [currentState.stepCount, playheadStep]);
-
   const handleSwitchSlot = (nextSlot: 'A' | 'B') => {
     setActiveSlot(nextSlot);
     if (nextSlot === 'A') {
@@ -116,17 +114,16 @@ export default function App() {
       setSlotA(makeStateFromPreset(0, 'A'));
       notify(`Slot A reset (${presetA.name})`);
     } else {
-      setSlotB(makeStateFromPreset(2, 'B'));
+      setSlotB(makeStateFromPreset(3, 'B'));
       notify(`Slot B reset (${presetB.name})`);
     }
-    setPlayheadStep(0);
   };
 
   const scrollToSpec = () => {
     document.getElementById('juce-spec')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const faceplateHeightPx = Math.round(760 * containerScale);
+  const faceplateHeightPx = Math.round(740 * containerScale);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#08090A] text-slate-100">
@@ -137,7 +134,7 @@ export default function App() {
             href="#faceplate"
             className="font-display text-lg font-bold tracking-[0.18em] text-slate-100 whitespace-nowrap shrink-0 uppercase"
           >
-            Vektor<span style={{ color: VEKTOR_TREM_COLORS.accentGreen }}>Gate</span>
+            Vektor<span style={{ color: VEKTOR_TREM_COLORS.accentGreen }}>Delay</span>
           </a>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-400">
@@ -180,17 +177,17 @@ export default function App() {
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-7">
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-                <span>VektorTrem Series</span>
+                <span>Vektor Series</span>
                 <span aria-hidden="true">·</span>
                 <span>VST3 &amp; AU</span>
                 <span aria-hidden="true">·</span>
-                <span>Audio / MIDI Insert</span>
+                <span>5-Mode Creative Sequenced Delay</span>
               </div>
               <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-100 mt-1.5 text-balance">
-                VektorGate Faceplate · Unified VektorTrem Line
+                VektorDelay Faceplate · Unified Vektor Line
               </h1>
               <p className="text-sm text-slate-400 mt-2 leading-relaxed max-w-xl">
-                Same centered-value encoders, obsidian chassis, and phosphor green accents as VektorTrem, with a restructured horizontal layout distinct from Iron Gate.
+                Centered-value encoders, obsidian chassis, and phosphor green accents unified with the Vektor Series — featuring 5 delay algorithms, 8-step sequencer &amp; dual stereo routing, pre/post damping filters, freeze, and ducking.
               </p>
             </div>
 
@@ -207,7 +204,7 @@ export default function App() {
                 }}
               >
                 {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                {isPlaying ? 'Pause Playhead' : 'Simulate Playhead'}
+                {isPlaying ? 'Pause Transport' : 'Simulate Transport'}
               </button>
 
               <div className="hidden sm:flex items-center gap-1 p-1 rounded-md bg-[#0E1012] border border-[#24272A]">
@@ -253,21 +250,20 @@ export default function App() {
                   transformOrigin: 'top center',
                 }}
               >
-                <VektorGateFaceplate
+                <VektorDelayFaceplate
                   state={currentState}
                   slotBState={slotB}
                   onChangeState={setCurrentState}
                   onSwitchSlot={handleSwitchSlot}
                   onReset={handleReset}
                   isPlaying={isPlaying}
-                  activePlayheadStep={playheadStep}
                   onNotify={notify}
                 />
               </div>
             </div>
 
             <p className="mt-4 text-xs text-slate-500 text-center px-4">
-              Test the centered-value rotary encoders, 7-shape signal bar, 32-step grid with step omit LEDs, and A / B comparator.
+              Switch between AIR / MAGNETIC / CIRCUIT / AETHER / REVERSE modes, program the 8-step sequencer or Dual Ping-Pong/Criss-Cross ratios, trigger TEST tone or FREEZE, and right-click any control in MIDI Learn mode.
             </p>
           </div>
         </section>
@@ -277,7 +273,7 @@ export default function App() {
 
       <footer className="border-t border-[#1E2125] py-6 px-6">
         <div className="max-w-[1280px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-          <span>VektorGate · VST3 / AU Faceplate Design (VektorTrem Line)</span>
+          <span>VektorDelay · VST3 / AU Faceplate Design (Vektor Series)</span>
           <span>Ready-to-port C++ / JUCE LookAndFeel specification</span>
         </div>
       </footer>

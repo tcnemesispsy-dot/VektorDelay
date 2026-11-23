@@ -1,23 +1,36 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { VEKTOR_TREM_COLORS } from '../data/vektorGateData';
-import { evaluateSignalShape } from './SignalWaveformSvg';
+import {
+  VEKTOR_TREM_COLORS,
+  DelayModeId,
+  PatternEngineMode,
+  DualRoutingMode,
+  DuckerTarget,
+  SequenceStep,
+} from '../data/vektorDelayData';
 
 interface StereoVuMeterCanvasProps {
-  levels: number[];
-  modes: number[];
-  enabledSteps: boolean[];
-  stepCount: number;
+  delayMode: DelayModeId;
+  patternMode: PatternEngineMode;
+  dualRouting: DualRoutingMode;
+  seqSteps: SequenceStep[];
+  seqStepCount: number;
   bpm: number;
-  beatsPerStep: number;
-  envTime: number;
-  smooth: number;
-  depth: number;
-  releaseMs: number;
+  effectiveDelayMs: number;
+  feedback: number;
+  modAmt: number;
+  characterVal: number;
+  width: number;
+  duckAmt: number;
+  duckRelease: number;
+  duckerTarget: DuckerTarget;
+  lowCutHz: number;
+  highCutHz: number;
   outTrimDb: number;
   mix: number;
+  freeze: boolean;
   bypassed: boolean;
   isPlaying: boolean;
-  activePlayheadStep: number;
+  testToneTriggerCount: number;
 }
 
 const MIN_DB = -48;
@@ -37,63 +50,89 @@ const SCALE_TICKS = [6, 3, 0, -3, -6, -12, -18, -24, -36, -48];
 
 /**
  * Dual-Pair Stereo Input / Output VU Meter rendered on HTML5 Canvas
- * for real-time gain staging inspection on the right side of VektorGate.
+ * for real-time gain staging inspection on the right side of VektorDelay.
  */
 export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
-  levels,
-  modes,
-  enabledSteps,
-  stepCount,
+  delayMode,
+  patternMode,
+  dualRouting,
+  seqSteps,
+  seqStepCount,
   bpm,
-  beatsPerStep,
-  envTime,
-  smooth,
-  depth,
-  releaseMs,
+  effectiveDelayMs,
+  feedback,
+  modAmt,
+  characterVal,
+  width: stereoWidth,
+  duckAmt,
+  duckRelease,
+  duckerTarget,
+  lowCutHz,
+  highCutHz,
   outTrimDb,
   mix,
+  freeze,
   bypassed,
   isPlaying,
-  activePlayheadStep,
+  testToneTriggerCount,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [readout, setReadout] = useState({ inDb: -9.4, outDb: -9.4, clipped: false });
   const clipLatchedRef = useRef(false);
+  const lastToneRef = useRef(testToneTriggerCount);
+  const toneBurstTimeRef = useRef(-10000);
+
+  if (testToneTriggerCount !== lastToneRef.current) {
+    lastToneRef.current = testToneTriggerCount;
+    toneBurstTimeRef.current = performance.now();
+  }
 
   const latestPropsRef = useRef({
-    levels,
-    modes,
-    enabledSteps,
-    stepCount,
+    delayMode,
+    patternMode,
+    dualRouting,
+    seqSteps,
+    seqStepCount,
     bpm,
-    beatsPerStep,
-    envTime,
-    smooth,
-    depth,
-    releaseMs,
+    effectiveDelayMs,
+    feedback,
+    modAmt,
+    characterVal,
+    stereoWidth,
+    duckAmt,
+    duckRelease,
+    duckerTarget,
+    lowCutHz,
+    highCutHz,
     outTrimDb,
     mix,
+    freeze,
     bypassed,
     isPlaying,
-    activePlayheadStep,
   });
 
   latestPropsRef.current = {
-    levels,
-    modes,
-    enabledSteps,
-    stepCount,
+    delayMode,
+    patternMode,
+    dualRouting,
+    seqSteps,
+    seqStepCount,
     bpm,
-    beatsPerStep,
-    envTime,
-    smooth,
-    depth,
-    releaseMs,
+    effectiveDelayMs,
+    feedback,
+    modAmt,
+    characterVal,
+    stereoWidth,
+    duckAmt,
+    duckRelease,
+    duckerTarget,
+    lowCutHz,
+    highCutHz,
     outTrimDb,
     mix,
+    freeze,
     bypassed,
     isPlaying,
-    activePlayheadStep,
   };
 
   useEffect(() => {
@@ -107,13 +146,11 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
     let lastTime = startTime;
     let lastReadoutTime = 0;
 
-    // Smoothed meter values in dB
     let vuInL = -18;
     let vuInR = -18;
     let vuOutL = -18;
     let vuOutR = -18;
 
-    // Peak hold in dB + hold timers
     let peakInL = -18;
     let peakInR = -18;
     let peakOutL = -18;
@@ -152,62 +189,93 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
       const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
       lastTime = now;
       const elapsedSec = (now - startTime) / 1000;
+      const sinceToneSec = Math.max(0, (now - toneBurstTimeRef.current) / 1000);
 
-      // Compute step phase synchronized with BPM & timebase
-      const stepDurationSec = Math.max(0.04, (60 / p.bpm) * p.beatsPerStep);
-      const continuousStep = p.isPlaying
-        ? (elapsedSec / stepDurationSec) % Math.max(2, p.stepCount)
-        : p.activePlayheadStep;
-      const stepIdx = p.isPlaying
-        ? p.activePlayheadStep % Math.max(2, p.stepCount)
-        : Math.floor(elapsedSec * 2) % Math.max(2, p.stepCount);
-      const frac = p.isPlaying
-        ? (elapsedSec % stepDurationSec) / stepDurationSec
-        : (elapsedSec * 1.4) % 1;
+      const beatSec = 60 / Math.max(40, p.bpm);
+      const delaySec = Math.max(0.03, p.effectiveDelayMs / 1000);
+      const beatPhase = (elapsedSec % beatSec) / beatSec;
+      const toneActive = sinceToneSec < 2.2;
+      const transientHit = p.isPlaying
+        ? Math.exp(-beatPhase * 5.2)
+        : toneActive
+        ? Math.exp(-sinceToneSec * 3.2)
+        : 0.24 + 0.1 * Math.sin(elapsedSec * 2.4);
 
-      // Simulated stereo input program signal (around -6 dBFS when playing, -10 dBFS idle monitor)
-      const baseInputLin = p.isPlaying ? 0.56 : 0.34;
-      const pulse = p.isPlaying
-        ? 0.84 + 0.22 * Math.sin(continuousStep * Math.PI * 2)
-        : 0.9 + 0.1 * Math.sin(elapsedSec * 3.1);
-      const stereoDriftL = 1 + 0.08 * Math.sin(elapsedSec * 5.3);
-      const stereoDriftR = 1 + 0.08 * Math.cos(elapsedSec * 4.7 + 0.7);
+      const baseInputLin = p.isPlaying
+        ? 0.34 + 0.34 * transientHit
+        : toneActive
+        ? 0.26 + 0.42 * transientHit
+        : 0.22 + 0.1 * transientHit;
+      const stereoDriftL = 1 + 0.06 * Math.sin(elapsedSec * 4.7);
+      const stereoDriftR = 1 + 0.06 * Math.cos(elapsedSec * 4.2 + 0.5);
 
-      const inLinL = baseInputLin * pulse * stereoDriftL;
-      const inLinR = baseInputLin * pulse * stereoDriftR;
+      const inLinL = baseInputLin * stereoDriftL;
+      const inLinR = baseInputLin * stereoDriftR;
 
-      // Compute gate gain for current step
-      let gateGainL = 1;
-      let gateGainR = 1;
+      let outLinL = inLinL;
+      let outLinR = inLinR;
 
       if (!p.bypassed) {
-        const isStepEnabled = p.enabledSteps[stepIdx] ?? true;
-        const lvl = isStepEnabled ? (p.levels[stepIdx] ?? 0.5) : 0;
-        const modeId = p.modes[stepIdx] ?? 0;
-        const shapedFrac = Math.min(1, frac / Math.max(0.25, p.envTime));
-        const shapeVal =
-          frac / Math.max(0.25, p.envTime) > 1 && (modeId === 1 || modeId === 2)
-            ? 0.04
-            : evaluateSignalShape(modeId, modeId === 1 || modeId === 2 ? shapedFrac : frac);
+        const echoPhase = (elapsedSec % delaySec) / delaySec;
+        const cycleIdx = Math.floor(elapsedSec / delaySec);
 
-        const releaseTail = Math.min(0.28, (p.releaseMs / 100) * 0.28);
-        const rawWet = isStepEnabled ? Math.max(releaseTail * lvl, lvl * shapeVal) : 0;
-        const smoothedWet = rawWet * (1 - p.smooth * 0.12) + lvl * (p.smooth * 0.12);
-        const gated = 1 - p.mix + p.mix * (1 - p.depth + p.depth * smoothedWet);
+        let stepGainL = 1;
+        let stepGainR = 1;
+        if (p.patternMode === 'sequence') {
+          const stepIdx = cycleIdx % Math.max(1, p.seqStepCount);
+          const step = p.seqSteps[stepIdx];
+          if (step && step.enabled) {
+            stepGainL = Math.max(0.25, 0.85 - step.pan * 0.55);
+            stepGainR = Math.max(0.25, 0.85 + step.pan * 0.55);
+          } else {
+            stepGainL = 0.22;
+            stepGainR = 0.22;
+          }
+        } else {
+          const isPingPong = p.dualRouting === 'pingpong';
+          stepGainL = isPingPong ? (cycleIdx % 2 === 0 ? 1.18 : 0.62) : 0.96 + 0.16 * Math.sin(cycleIdx);
+          stepGainR = isPingPong ? (cycleIdx % 2 === 1 ? 1.18 : 0.62) : 0.96 + 0.16 * Math.cos(cycleIdx);
+        }
 
-        gateGainL = gated;
-        gateGainR = gated * (0.97 + 0.03 * Math.cos(elapsedSec * 3.4));
+        const fbTail = p.freeze ? 1.18 : Math.min(1.42, 0.36 + p.feedback * 0.72);
+        const echoPulse = p.freeze
+          ? 0.86 + 0.08 * Math.sin(elapsedSec * 3.1)
+          : (0.45 + 0.55 * Math.exp(-echoPhase * (2.6 - Math.min(1.8, p.feedback * 1.4)))) * fbTail;
+
+        const duckFactor = p.duckerTarget === 'fb' ? 0.52 : p.duckerTarget === 'both' ? 0.85 : 0.72;
+        const duckAtten = 1 - p.duckAmt * duckFactor * Math.min(1, transientHit * 1.25);
+
+        const lpAtten = Math.min(
+          1,
+          0.55 + 0.45 * (Math.log10(Math.max(800, p.highCutHz) / 800) / Math.log10(20000 / 800))
+        );
+        const hpAtten = Math.max(0.55, 1 - (Math.max(20, p.lowCutHz) / 1200) * 0.38);
+        const modeDrive =
+          p.delayMode === 'magnetic' || p.delayMode === 'circuit'
+            ? 1 + p.characterVal * 0.28
+            : p.delayMode === 'aether'
+            ? 1.08
+            : 1.0;
+        const widthFactor = 0.85 + p.stereoWidth * 0.12;
+        const modWobble = 1 + p.modAmt * 0.06 * Math.sin(elapsedSec * 8.4);
+
+        const wetBase =
+          (0.28 + baseInputLin) * echoPulse * duckAtten * lpAtten * hpAtten * modeDrive * modWobble;
+        const wetL = wetBase * stepGainL * widthFactor;
+        const wetR = wetBase * stepGainR * widthFactor;
+
+        const outTrimLinear = Math.pow(10, p.outTrimDb / 20);
+        outLinL = ((1 - p.mix) * inLinL + p.mix * (inLinL * 0.48 + wetL * 0.82)) * outTrimLinear;
+        outLinR = ((1 - p.mix) * inLinR + p.mix * (inLinR * 0.48 + wetR * 0.82)) * outTrimLinear;
       }
 
-      const outTrimLinear = p.bypassed ? 1 : Math.pow(10, p.outTrimDb / 20);
       const targetInDbL = gainToDb(inLinL);
       const targetInDbR = gainToDb(inLinR);
-      const targetOutDbL = gainToDb(inLinL * gateGainL * outTrimLinear);
-      const targetOutDbR = gainToDb(inLinR * gateGainR * outTrimLinear);
+      const targetOutDbL = gainToDb(outLinL);
+      const targetOutDbR = gainToDb(outLinR);
 
-      // VU ballistic integration (fast attack, smooth release weighted by releaseMs)
       const smoothMeter = (cur: number, target: number) => {
-        const rate = target > cur ? 24 : Math.max(5.5, 13 - (p.releaseMs / 100) * 6);
+        const rate = target > cur ? 22 : Math.max(4.5, 11 - p.feedback * 4 - p.duckRelease * 2);
         return cur + (target - cur) * (1 - Math.exp(-rate * dt));
       };
 
@@ -216,12 +284,7 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
       vuOutL = smoothMeter(vuOutL, targetOutDbL);
       vuOutR = smoothMeter(vuOutR, targetOutDbR);
 
-      // Peak hold update
-      const updatePeak = (
-        val: number,
-        peak: number,
-        hold: number
-      ): [number, number] => {
+      const updatePeak = (val: number, peak: number, hold: number): [number, number] => {
         if (val >= peak) return [val, 0.85];
         if (hold > 0) return [peak, hold - dt];
         return [Math.max(MIN_DB, peak - 18 * dt), 0];
@@ -236,7 +299,6 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
         clipLatchedRef.current = true;
       }
 
-      // Throttle React readout updates to ~15Hz
       if (now - lastReadoutTime > 65) {
         lastReadoutTime = now;
         const maxIn = Math.max(vuInL, vuInR);
@@ -263,7 +325,6 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
         const meterBottom = height - padBottom;
         const meterH = Math.max(40, meterBottom - meterTop);
 
-        // Layout: [IN L][IN R]  [dB Scale]  [OUT L][OUT R]
         const barW = 9;
         const pairGap = 2;
         const scaleW = 24;
@@ -279,7 +340,6 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
         const yForDb = (db: number) => meterBottom - dbToNorm(db) * meterH;
         const zeroDbY = yForDb(0);
 
-        // Subtle 0 dB reference line spanning across all bars
         ctx.strokeStyle = 'rgba(249, 115, 22, 0.35)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -287,7 +347,6 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
         ctx.lineTo(outRX + barW + 2, zeroDbY);
         ctx.stroke();
 
-        // Draw calibrated center dB scale ticks
         ctx.font = '500 8px "JetBrains Mono", ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -306,14 +365,12 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
           ctx.fillText(tick > 0 ? `+${tick}` : `${tick}`, scaleCenterX, ty);
         }
 
-        // Helper to draw a segmented LED VU bar
         const drawMeterBar = (
           x: number,
           dbVal: number,
           peakVal: number,
           isInputMeter: boolean
         ) => {
-          // Track recess
           ctx.fillStyle = '#07080A';
           ctx.fillRect(x, meterTop, barW, meterH);
           ctx.strokeStyle = '#1B1E23';
@@ -357,7 +414,6 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
             ctx.fillRect(x + 1.5, sy, barW - 3, Math.max(1.5, segH));
           }
 
-          // Peak hold indicator hairline
           const peakNorm = dbToNorm(peakVal);
           if (peakNorm > 0.02) {
             const py = Math.max(
@@ -381,7 +437,6 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
         drawMeterBar(outLX, vuOutL, peakOutL, false);
         drawMeterBar(outRX, vuOutR, peakOutR, false);
 
-        // Channel footer labels (L R)
         ctx.font = '600 8px "JetBrains Mono", ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
@@ -413,7 +468,6 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
 
   return (
     <div className="h-full flex flex-col justify-between gap-2">
-      {/* Header + Clip Indicator */}
       <div className="flex items-center justify-between gap-1">
         <span className="font-mono text-[9.5px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
           I/O VU
@@ -432,19 +486,16 @@ export const StereoVuMeterCanvas: React.FC<StereoVuMeterCanvasProps> = ({
         </button>
       </div>
 
-      {/* Column Titles: IN vs OUT */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center text-center font-mono text-[8.5px] tracking-wider">
         <span style={{ color: VEKTOR_TREM_COLORS.accentMint }}>IN</span>
         <span className="text-slate-600 px-1">dB</span>
         <span style={{ color: bypassed ? '#9CA3AF' : VEKTOR_TREM_COLORS.accentGreen }}>OUT</span>
       </div>
 
-      {/* Main Canvas Stereo Meter Stage */}
       <div className="relative flex-1 min-h-[360px] rounded-[6px] vektor-scope overflow-hidden">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       </div>
 
-      {/* Live Numeric Gain Staging Readouts */}
       <div className="rounded-[5px] bg-[#0B0C0E] border border-[#202328] px-2 py-1.5 grid grid-cols-2 gap-1.5 text-center font-mono tabular-nums">
         <div>
           <div className="text-[7.5px] text-slate-500 uppercase tracking-wider">IN PK</div>

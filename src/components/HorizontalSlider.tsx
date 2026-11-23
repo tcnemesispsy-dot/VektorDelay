@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { VEKTOR_TREM_COLORS } from '../data/vektorGateData';
+import { VEKTOR_TREM_COLORS } from '../data/vektorDelayData';
 
 interface HorizontalSliderProps {
   label: string;

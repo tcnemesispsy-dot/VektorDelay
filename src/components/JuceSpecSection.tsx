@@ -8,7 +8,7 @@ interface JuceSpecSectionProps {
 export const JuceSpecSection: React.FC<JuceSpecSectionProps> = ({ onNotify }) => {
   const [copied, setCopied] = useState(false);
 
-  const juceHeaderCode = `// VektorTheme.h — Shared tokens with VektorTrem VST3 (JUCE C++20 / VST3 & AU)
+  const juceHeaderCode = `// VektorTheme.h — Shared tokens for VektorDelay & Vektor Series (JUCE C++20 / VST3 & AU)
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -27,14 +27,14 @@ namespace VektorTheme
     inline const juce::Colour textPrimary     { 0xfff3f4f6 };
     inline const juce::Colour textMuted       { 0xff6b7280 };
 
-    // Optimized horizontal architecture (Full-Width Gate + Horizontal Engine)
-    constexpr int editorWidth     = 1040;
-    constexpr int editorHeight    = 720;
-    constexpr int topBarHeight    = 54;
-    constexpr int gateScopeHeight = 366;
-    constexpr int engineBarHeight = 128;
-    constexpr int footerBarHeight = 114;
-    constexpr float panelRadius   = 8.0f;
+    // VektorDelay 5-Mode Sequenced Architecture (Pattern + Vector Orb + Filters + Ducker)
+    constexpr int editorWidth      = 1040;
+    constexpr int editorHeight     = 720;
+    constexpr int topBarHeight     = 54;
+    constexpr int delayScopeHeight = 366;
+    constexpr int engineBarHeight  = 128;
+    constexpr int footerBarHeight  = 114;
+    constexpr float panelRadius    = 8.0f;
 }`;
 
   const handleCopy = () => {
@@ -50,14 +50,14 @@ namespace VektorTheme
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <p className="font-mono text-xs tracking-wider text-slate-500 uppercase">
-              01 · Horizontal Restructuring
+              01 · Creative Delay Architecture
             </p>
             <h2 className="font-display text-2xl font-bold text-slate-100 mt-1 text-balance">
-              Full Sequencer Focus &amp; Horizontal Gate Engine
+              5-Mode Vector Orb, 8-Step Sequencer &amp; Ducker Engine
             </h2>
           </div>
           <p className="text-sm text-slate-400 max-w-md">
-            The gate display spans the full width to maximize precision across all 32 bars and the Canvas audio waveform, while the Gate Engine module sits in a compact horizontal strip underneath with zero redundant controls.
+            Combines five character delay algorithms (Air, Magnetic, Circuit, Aether, Reverse), an 8-step panning sequencer or Dual routing engine, pre/post EQ damping, and sidechain ducking inside the unified 1040px Vektor chassis.
           </p>
         </div>
 
@@ -75,30 +75,30 @@ namespace VektorTheme
           <div className="border border-[#24272A] bg-[#121416] p-5 rounded-lg">
             <div className="font-mono text-xs text-[#22E55E] tabular-nums">882 × 366 px</div>
             <h3 className="font-display text-base font-semibold text-slate-100 mt-1.5">
-              Vektor-Scope &amp; Automation
+              Pattern, Orb, Filters &amp; Feedback Path
             </h3>
             <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-              Multi-mode sequencer bay (<span className="text-slate-200">BARS · SCOPE · AUTO</span>) featuring 32-step bars, Canvas audio waveform, and simulated automation lanes for <span className="text-slate-200">Smooth</span>, <span className="text-slate-200">Env</span>, and <span className="text-slate-200">Swing</span>.
+              <span className="text-slate-200">AIR · MAGNETIC · CIRCUIT · AETHER · REVERSE</span> modes with sub-types, <span className="text-slate-200">DUAL / SEQUENCE</span> 8-step panner, <span className="text-slate-200">TEST / FREEZE</span>, morphing vector orb, <span className="text-slate-200">PRE/POST</span> filter curve, and live <span className="text-slate-200">Feedback Path</span> canvas.
             </p>
           </div>
 
           <div className="border border-[#24272A] bg-[#121416] p-5 rounded-lg">
             <div className="font-mono text-xs text-[#22E55E] tabular-nums">882 × 128 px</div>
             <h3 className="font-display text-base font-semibold text-slate-100 mt-1.5">
-              Horizontal Gate Engine
+              Groove &amp; Delay Engine
             </h3>
             <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-              Places <span className="text-slate-200">STEPS</span>, <span className="text-slate-200">SMOOTHING</span>, <span className="text-slate-200">ENV</span>, and <span className="text-slate-200">SWING</span> encoders on the left and the <span className="text-slate-200">6×2 TIMEBASE</span> matrix on the right.
+              Combines <span className="text-slate-200">SYNC/FREE</span>, <span className="text-slate-200">SWING</span>, <span className="text-slate-200">OFFSET</span>, <span className="text-slate-200">DELAY</span>, <span className="text-slate-200">FEEDBACK</span>, <span className="text-slate-200">MOD RATE</span>, and <span className="text-slate-200">MOD AMT</span> with a <span className="text-slate-200">6×2 TIMEBASE</span> matrix.
             </p>
           </div>
 
           <div className="border border-[#24272A] bg-[#121416] p-5 rounded-lg">
-            <div className="font-mono text-xs text-[#22E55E] tabular-nums">114 × 608 px + Master</div>
+            <div className="font-mono text-xs text-[#22E55E] tabular-nums">114 × 608 px + Ducker</div>
             <h3 className="font-display text-base font-semibold text-slate-100 mt-1.5">
-              Master Strip &amp; I/O VU Bay
+              Filters, Ducker &amp; I/O VU
             </h3>
             <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-              Four VektorTrem encoders (<span className="text-slate-200">GATE DEPTH</span>, <span className="text-slate-200">RELEASE</span>, <span className="text-slate-200">OUT</span>, <span className="text-slate-200">MIX</span>) paired with a docked right-side <span className="text-slate-200">Stereo I/O VU Meter</span> on HTML5 Canvas.
+              Mode-adaptive <span className="text-slate-200">CHARACTER / PITCH</span>, <span className="text-slate-200">WIDTH</span>, <span className="text-slate-200">LOW/HIGH CUT</span>, <span className="text-slate-200">DUCKER (POST/FB/BOTH + EXT SC)</span>, <span className="text-slate-200">OUT</span>, and <span className="text-slate-200">MIX</span> paired with the Stereo I/O VU Canvas.
             </p>
           </div>
         </div>

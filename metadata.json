@@ -1,6 +1,6 @@
 {
-  "name": "VektorGate — Diseño de Carátula VST3 / AU",
-  "description": "Prototipo visual e interactivo de la carátula para el plugin de gate rítmico VektorGate (C++ / JUCE, VST3 y AU), inspirado en Iron Gate y la línea estética Vektor Series.",
+  "name": "VektorDelay — Diseño de Carátula VST3 / AU",
+  "description": "Prototipo visual e interactivo de la carátula para el plugin Multi-Tap Stereo Delay VektorDelay (C++ / JUCE, VST3 y AU), unificado con la línea estética Vektor Series.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

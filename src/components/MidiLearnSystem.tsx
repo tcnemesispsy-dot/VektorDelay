@@ -1,19 +1,27 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Radio, CheckCircle2, Trash2, X, Cable, Sliders } from 'lucide-react';
-import { VEKTOR_TREM_COLORS } from '../data/vektorGateData';
+import { VEKTOR_TREM_COLORS } from '../data/vektorDelayData';
 
 export type MidiParamId =
   | 'bpm'
-  | 'steps'
-  | 'smooth'
-  | 'envTime'
   | 'swing'
+  | 'offsetMs'
+  | 'delayTime'
   | 'timebase'
-  | 'depth'
-  | 'releaseMs'
+  | 'syncMode'
+  | 'feedback'
+  | 'modRate'
+  | 'modAmt'
+  | 'character'
+  | 'width'
+  | 'lowCut'
+  | 'highCut'
+  | 'duckAmt'
+  | 'duckRel'
   | 'outTrimDb'
   | 'mix'
+  | 'freeze'
   | 'bypassed';
 
 export interface MidiMappingEntry {
@@ -23,22 +31,30 @@ export interface MidiMappingEntry {
   lastValue?: number; // 0..127
 }
 
-export const MIDI_MAPPINGS_STORAGE_KEY = 'vektorgate_midi_mappings_v1';
+export const MIDI_MAPPINGS_STORAGE_KEY = 'vektordelay_midi_mappings_v1';
 
 export const MIDI_PARAM_META: Record<
   MidiParamId,
   { label: string; group: string; rangeHint: string }
 > = {
   bpm: { label: 'BPM', group: 'Header', rangeHint: '40 – 240 BPM' },
-  steps: { label: 'STEPS', group: 'Gate Engine', rangeHint: '2 – 32 steps' },
-  smooth: { label: 'SMOOTHING', group: 'Gate Engine', rangeHint: '0% – 100%' },
-  envTime: { label: 'ENV', group: 'Gate Engine', rangeHint: '0.10x – 1.00x' },
-  swing: { label: 'SWING', group: 'Gate Engine', rangeHint: '0% – 75%' },
-  timebase: { label: 'TIMEBASE', group: 'Gate Engine', rangeHint: '1/1 – 1/64T' },
-  depth: { label: 'GATE DEPTH', group: 'Master', rangeHint: '0% – 100%' },
-  releaseMs: { label: 'RELEASE', group: 'Master', rangeHint: '1.00 – 100 ms' },
+  swing: { label: 'SWING', group: 'Delay Engine', rangeHint: '0% – 100%' },
+  offsetMs: { label: 'OFFSET', group: 'Delay Engine', rangeHint: '-50 – +50 ms' },
+  delayTime: { label: 'DELAY', group: 'Delay Engine', rangeHint: '10 – 2000 ms' },
+  timebase: { label: 'TIMEBASE', group: 'Delay Engine', rangeHint: '1/1 – 1/16T' },
+  syncMode: { label: 'SYNC / FREE', group: 'Delay Engine', rangeHint: 'Switch (CC >= 64)' },
+  feedback: { label: 'FEEDBACK', group: 'Delay Engine', rangeHint: '0% – 110%' },
+  modRate: { label: 'MOD RATE', group: 'Delay Engine', rangeHint: '0.05 – 10.0 Hz' },
+  modAmt: { label: 'MOD AMT', group: 'Delay Engine', rangeHint: '0% – 100%' },
+  character: { label: 'CHARACTER / PITCH', group: 'Filters & Ducker', rangeHint: 'Mode-dependent' },
+  width: { label: 'WIDTH', group: 'Filters & Ducker', rangeHint: '0% – 200%' },
+  lowCut: { label: 'LOW CUT', group: 'Filters & Ducker', rangeHint: '20 Hz – 1.2 kHz' },
+  highCut: { label: 'HIGH CUT', group: 'Filters & Ducker', rangeHint: '800 Hz – 20.0 kHz' },
+  duckAmt: { label: 'DUCK AMT', group: 'Filters & Ducker', rangeHint: '0% – 100%' },
+  duckRel: { label: 'DUCK REL', group: 'Filters & Ducker', rangeHint: '0% – 100%' },
   outTrimDb: { label: 'OUT', group: 'Master', rangeHint: '-12.0 – +12.0 dB' },
   mix: { label: 'MIX', group: 'Master', rangeHint: '0% – 100%' },
+  freeze: { label: 'FREEZE', group: 'Scope', rangeHint: 'Switch (CC >= 64)' },
   bypassed: { label: 'BYPASS', group: 'Header', rangeHint: 'Switch (CC >= 64)' },
 };
 
@@ -98,7 +114,6 @@ export const SettingsMenuPopover: React.FC<SettingsMenuPopoverProps> = ({
       transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
       className="absolute right-0 top-8 w-[332px] z-40 rounded-[8px] bg-[#111317] border border-[#2C313A] shadow-[0_24px_56px_rgba(0,0,0,0.9)] overflow-hidden"
     >
-      {/* Header */}
       <div className="px-3.5 py-2.5 bg-[#0B0D10] border-b border-[#1E2229] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sliders className="w-3.5 h-3.5 text-slate-400" />
@@ -116,7 +131,6 @@ export const SettingsMenuPopover: React.FC<SettingsMenuPopoverProps> = ({
         </button>
       </div>
 
-      {/* MIDI Learn Mode Toggle Row */}
       <div className="p-3.5 border-b border-[#1E2228] space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -159,7 +173,6 @@ export const SettingsMenuPopover: React.FC<SettingsMenuPopoverProps> = ({
           </button>
         </div>
 
-        {/* Web MIDI Hardware Port Strip */}
         <div className="rounded-[5px] bg-[#0B0D10] border border-[#1E2228] px-2.5 py-2 flex items-center justify-between gap-2">
           <div className="min-w-0 flex items-center gap-2">
             <Cable
@@ -203,7 +216,6 @@ export const SettingsMenuPopover: React.FC<SettingsMenuPopoverProps> = ({
         </div>
       </div>
 
-      {/* Active Mappings List */}
       <div className="px-3.5 py-2.5 bg-[#0E1014]">
         <div className="flex items-center justify-between mb-2">
           <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-slate-500">
@@ -323,7 +335,6 @@ export const MidiLearnOverlay: React.FC<MidiLearnOverlayProps> = ({
             : '0 24px 64px rgba(0,0,0,0.9), 0 0 24px rgba(58, 227, 158, 0.15)',
         }}
       >
-        {/* Top Confirmation Banner */}
         <div
           className="px-4 py-3 border-b flex items-center justify-between gap-3"
           style={{
@@ -362,7 +373,6 @@ export const MidiLearnOverlay: React.FC<MidiLearnOverlayProps> = ({
           </button>
         </div>
 
-        {/* Target Parameter Card */}
         <div className="p-4 space-y-3.5">
           <div className="rounded-[6px] bg-[#0A0C0F] border border-[#22262E] px-3.5 py-2.5 flex items-center justify-between gap-3">
             <div>
@@ -413,7 +423,6 @@ export const MidiLearnOverlay: React.FC<MidiLearnOverlayProps> = ({
                 to bind it to <span className="font-semibold text-white">{meta.label}</span>.
               </p>
 
-              {/* Hardware CC Simulator / Direct Assignment */}
               <div className="rounded-[6px] bg-[#0B0D11] border border-[#1E222A] p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] uppercase tracking-wider text-slate-400">
@@ -437,11 +446,11 @@ export const MidiLearnOverlay: React.FC<MidiLearnOverlayProps> = ({
                 </div>
 
                 <form onSubmit={handleCustomBind} className="flex items-center gap-1.5 pt-1">
-                  <label className="font-mono text-[9.5px] text-slate-400 shrink-0" htmlFor="vg-cc-num">
+                  <label className="font-mono text-[9.5px] text-slate-400 shrink-0" htmlFor="vd-cc-num">
                     Custom CC #
                   </label>
                   <input
-                    id="vg-cc-num"
+                    id="vd-cc-num"
                     type="number"
                     min={0}
                     max={127}

@@ -6,7 +6,7 @@ import {
   useTransform,
   useReducedMotion,
 } from 'motion/react';
-import { VEKTOR_TREM_COLORS } from '../data/vektorGateData';
+import { VEKTOR_TREM_COLORS } from '../data/vektorDelayData';
 
 interface RotaryEncoderProps {
   label: string;
