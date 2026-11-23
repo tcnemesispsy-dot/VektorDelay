@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Chakra Petch", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Neutral matte obsidian chassis matching VektorTrem VST3 */
+.vektor-chassis {
+  background: linear-gradient(180deg, #17191B 0%, #121416 48%, #0F1112 100%);
+}
+
+.vektor-subpanel {
+  background: linear-gradient(180deg, #16181B 0%, #131517 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.vektor-scope {
+  background-color: #0B0C0E;
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.85),
+    inset 0 0 0 1px #222528;
+}
+
+/* Dark hardware-styled scrollbar for preset browser */
+.vektor-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #2B3038 #0A0B0D;
+}
+
+.vektor-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.vektor-scrollbar::-webkit-scrollbar-track {
+  background: #0A0B0D;
+  border-radius: 9999px;
+}
+
+.vektor-scrollbar::-webkit-scrollbar-thumb {
+  background: #272B32;
+  border-radius: 9999px;
+  border: 1px solid #0A0B0D;
+}
+
+.vektor-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
